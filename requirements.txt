@@ -1,0 +1,11 @@
+# Smart Student Productivity Advisor - Dependencies
+# Python 3.8+ recommended
+
+pandas>=1.3.0
+numpy>=1.21.0
+matplotlib>=3.4.0
+seaborn>=0.11.0
+scikit-learn>=1.0.0
+xgboost>=1.5.0
+shap>=0.40.0
+joblib>=1.1.0

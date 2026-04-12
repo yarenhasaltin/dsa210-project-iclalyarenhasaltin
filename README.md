@@ -1,1 +1,112 @@
-# Term Project of İclal Yaren Hasaltın for DSA210
+# Smart Student Productivity Advisor
+
+**Measuring Digital Distraction and Recommending Productivity Improvements with Machine Learning**
+
+---
+
+## Project Objective
+
+This data science project studies how **digital distraction** affects student productivity and builds:
+
+1. **Productivity prediction** – Regression models to predict `productivity_score` from lifestyle and academic behavior.
+2. **Digital distraction impact analysis** – Which distraction features hurt productivity the most.
+3. **Recommendation engine** – Suggests realistic lifestyle changes to improve predicted productivity.
+
+**Main target variable:** `productivity_score`
+
+---
+## Project Proposal (short)
+This project studies how **digital distraction** (phone, social media, YouTube, gaming) relates to student **`productivity_score`** and whether we can: (1) predict productivity from lifestyle and academic behavior features, and (2) recommend realistic lifestyle changes that improve predicted productivity.
+
+**Data source and collection.** I will use a public tabular CSV dataset (or a compatible dataset aligned to the same schema) with one row per student and the required columns: `student_id, age, gender, study_hours_per_day, sleep_hours, phone_usage_hours, social_media_hours, youtube_hours, gaming_hours, breaks_per_day, coffee_intake_mg, exercise_minutes, assignments_completed, attendance_percentage, stress_level, focus_score, final_grade, productivity_score`. If some columns are missing, I will document the exact source(s) and explain how missing data are handled (transparent imputation vs. row removal). If I use self-collected survey data, I will collect anonymously with consent and anonymization.
+
+**Planned enrichment and leakage handling.** I will engineer course-relevant features such as `digital_distraction_score`, `healthy_lifestyle_score`, `academic_engagement_score`, `study_to_phone_ratio`, `stress_focus_balance`, `break_efficiency_score`, and `caffeine_stress_interaction`. Because `final_grade` can be strongly related to productivity and may cause leakage, the main predictive model will exclude `final_grade` (and `grade_productivity_gap`).
+
+**Planned pipeline and evaluation.** the workflow is loading + schema checks, missing/duplicate handling, IQR outlier removal, gender encoding, feature engineering, regression model training (Linear/Ridge/Lasso, Random Forest, Gradient Boosting, optionally XGBoost), and evaluation with **RMSE, MAE, and R²**. I will include EDA/diagnostics (correlation heatmap, actual vs. predicted, residuals), an interpretation section (feature importance; plus SHAP/permutation importance when available), a reduced distraction-only experiment vs. the full model, and a scenario-based recommendation engine ranking realistic improvements by predicted gain.
+
+**Ethics and AI disclosure.** I will not use `student_id` as a predictive feature and I will discuss association vs. causation. AI assistance will be disclosed as required (drafting and implementation/debugging, with verification by running the code and checking outputs).
+
+---
+
+## Dataset Description
+
+The dataset contains student lifestyle, academic behavior, digital distraction, and productivity variables.
+
+**Schema:**  
+`student_id`, `age`, `gender`, `study_hours_per_day`, `sleep_hours`, `phone_usage_hours`, `social_media_hours`, `youtube_hours`, `gaming_hours`, `breaks_per_day`, `coffee_intake_mg`, `exercise_minutes`, `assignments_completed`, `attendance_percentage`, `stress_level`, `focus_score`, `final_grade`, `productivity_score`
+
+- **Digital distraction:** phone_usage_hours, social_media_hours, youtube_hours, gaming_hours  
+- **Positive factors:** study_hours_per_day, sleep_hours, exercise_minutes, assignments_completed, attendance_percentage, focus_score  
+
+Place your CSV file as `student_productivity.csv` in the project root, or the code will generate synthetic data for demonstration.
+
+---
+
+## Methods Used
+
+- **Data:** Loading, validation, missing/duplicate handling, basic statistics  
+- **EDA:** Univariate/bivariate analysis, correlation heatmap, digital distraction vs productivity  
+- **Preprocessing:** Outlier handling (IQR), scaling, gender encoding  
+- **Feature engineering:** digital_distraction_score, healthy_lifestyle_score, academic_engagement_score, study_to_phone_ratio, stress_focus_balance, break_efficiency_score, caffeine_stress_interaction, grade_productivity_gap  
+- **Modeling:** Linear Regression, Ridge, Lasso, Random Forest, Gradient Boosting, XGBoost  
+- **Evaluation:** RMSE, MAE, R²; model comparison; actual vs predicted; residuals; feature importance  
+- **Digital distraction analysis:** Correlation, reduced-model experiment, interpretation  
+- **Recommendation engine:** Scenario-based suggestions (reduce distraction, increase sleep/exercise/study) with realistic bounds  
+
+---
+
+## How to Run
+
+1. **Install dependencies** (use a virtual environment if needed)
+   ```bash
+   python3 -m venv .venv
+   source .venv/bin/activate   # On Windows: .venv\Scripts\activate
+   pip install -r requirements.txt
+   ```
+
+2. **Prepare data**  
+   Put your CSV at `student_productivity.csv` in the project root, or leave it missing to use generated synthetic data.
+
+3. **Run the full pipeline**
+   ```bash
+   python main.py
+   ```
+   Or from the project root:
+   ```bash
+   cd dsa210-project-iclalyarenhasaltin
+   python main.py
+   ```
+
+4. **Outputs**
+   - Console: data summary, EDA insights, model comparison, recommendation examples  
+   - Plots saved in `outputs/` (if created): distributions, correlation heatmap, model comparison, actual vs predicted, residuals, feature importance, recommendation improvement  
+
+---
+
+## Project Structure
+
+```
+dsa210-project-iclalyarenhasaltin/
+├── main.py                 # Entry point; runs full pipeline
+├── student_productivity.csv # Your dataset (or synthetic if missing)
+├── requirements.txt
+├── README.md
+├── src/
+│   ├── utils.py            # Constants, paths, helpers
+│   ├── data_preprocessing.py
+│   ├── feature_engineering.py│   └── evaluation.py
+└── outputs/                # Generated plots (created on first run)
+```
+
+---
+
+## Report Summary (for Course Report)
+
+- **Problem definition:** Predict productivity and recommend lifestyle changes to improve it, with focus on digital distraction.  
+- **Data preprocessing:** Schema validation, missing/duplicate handling, encoding, outlier treatment, scaling.  
+- **Feature engineering:** Composite scores (digital distraction, healthy lifestyle, academic engagement), ratios and balances, interaction terms.  
+- **Modeling:** Multiple regressors compared; best model selected by R²/RMSE/MAE.  
+- **Digital distraction analysis:** Correlation and reduced-model experiments show which distractions matter most.  
+- **Recommendation engine:** Scenario simulation with realistic bounds; outputs ranked suggestions and expected gains.  
+- **Evaluation:** Metrics table, residual and actual vs predicted plots, feature importance.  
+- **Future improvements:** More data, temporal features, classification for “low/medium/high” productivity, A/B testing of recommendations.

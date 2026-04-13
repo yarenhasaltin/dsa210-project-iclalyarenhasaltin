@@ -94,7 +94,7 @@ def run_eda(df):
     plt.tight_layout()
     plt.savefig(os.path.join(OUTPUT_DIR, "missing_profile.png"), dpi=150, bbox_inches="tight")
     plt.close()
-    print("Saved: outputs/missing_profile.png")
+    print("Missing profile plot generated.")
 
     # quick univariate plots
     numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
@@ -112,7 +112,7 @@ def run_eda(df):
         plt.tight_layout()
         plt.savefig(os.path.join(OUTPUT_DIR, "distributions.png"), dpi=150, bbox_inches="tight")
         plt.close()
-        print("Saved: outputs/distributions.png")
+        print("Distribution plots generated.")
 
     # boxplots for some key vars
     box_vars = [TARGET_COLUMN, "study_hours_per_day", "sleep_hours", "phone_usage_hours", "stress_level", "focus_score"]
@@ -125,7 +125,7 @@ def run_eda(df):
         plt.tight_layout()
         plt.savefig(os.path.join(OUTPUT_DIR, "boxplots.png"), dpi=150, bbox_inches="tight")
         plt.close()
-        print("Saved: outputs/boxplots.png")
+        print("Boxplots generated.")
 
     if "gender" in df.columns:
         print("\nGender value counts:\n", df["gender"].value_counts())
@@ -137,7 +137,7 @@ def run_eda(df):
             plt.tight_layout()
             plt.savefig(os.path.join(OUTPUT_DIR, "productivity_by_gender.png"), dpi=150, bbox_inches="tight")
             plt.close()
-            print("Saved: outputs/productivity_by_gender.png")
+            print("Gender comparison plot generated.")
 
     # small pairplot sample for quick structure check
     pair_cols = [
@@ -152,7 +152,7 @@ def run_eda(df):
         g.fig.suptitle("Pairplot sample (key vars)", y=1.02)
         g.fig.savefig(os.path.join(OUTPUT_DIR, "pairplot_key_vars.png"), dpi=150, bbox_inches="tight")
         plt.close(g.fig)
-        print("Saved: outputs/pairplot_key_vars.png")
+        print("Pairplot generated.")
 
     # correlation heatmap
     corr = df.select_dtypes(include=[np.number]).corr()
@@ -162,7 +162,7 @@ def run_eda(df):
     plt.tight_layout()
     plt.savefig(os.path.join(OUTPUT_DIR, "correlation_heatmap.png"), dpi=150, bbox_inches="tight")
     plt.close()
-    print("Saved: outputs/correlation_heatmap.png")
+    print("Correlation heatmap generated.")
 
     # scatter vs target
     scatter_vars = [
@@ -189,7 +189,7 @@ def run_eda(df):
     plt.tight_layout()
     plt.savefig(os.path.join(OUTPUT_DIR, "scatter_productivity.png"), dpi=150, bbox_inches="tight")
     plt.close()
-    print("Saved: outputs/scatter_productivity.png")
+    print("Scatter plots generated.")
 
     # distraction vars vs target
     dist_cols = [c for c in DIGITAL_DISTRACTION_FEATURES if c in df.columns]
@@ -205,7 +205,7 @@ def run_eda(df):
         plt.tight_layout()
         plt.savefig(os.path.join(OUTPUT_DIR, "digital_distraction_vs_productivity.png"), dpi=150, bbox_inches="tight")
         plt.close()
-        print("Saved: outputs/digital_distraction_vs_productivity.png")
+        print("Distraction scatter plots generated.")
 
     # quick correlation summary
     if TARGET_COLUMN in df.columns:
@@ -223,7 +223,7 @@ def run_eda(df):
         plt.tight_layout()
         plt.savefig(os.path.join(OUTPUT_DIR, "top_correlations_with_productivity.png"), dpi=150, bbox_inches="tight")
         plt.close()
-        print("Saved: outputs/top_correlations_with_productivity.png")
+        print("Correlation bar chart generated.")
 
         # formal tests if scipy exist
         try:
@@ -272,7 +272,7 @@ def run_eda(df):
         plt.tight_layout()
         plt.savefig(os.path.join(OUTPUT_DIR, "productivity_by_distraction_bucket.png"), dpi=150, bbox_inches="tight")
         plt.close()
-        print("Saved: outputs/productivity_by_distraction_bucket.png")
+        print("Distraction bucket plot generated.")
     return df
 
 
@@ -350,7 +350,7 @@ def run_evaluation_plots(out, y_pred, y_test):
         permutation_importance_plot(best_model, X_te, y_test, fn, n_repeats=5)
     except Exception as e:
         print("Permutation importance skipped:", e)
-    print("Evaluation plots saved to outputs/")
+    print("Evaluation plots generated.")
 
 
 # =============================================================================
@@ -533,7 +533,7 @@ def main():
     run_digital_distraction_analysis(df, out)
     run_recommendations(df, out, feature_names)
     print_report_summary()
-    print("\nDone. Check outputs/ for plots.")
+    print("\nDone.")
 
 
 if __name__ == "__main__":

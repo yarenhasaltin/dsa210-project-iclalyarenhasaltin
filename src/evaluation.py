@@ -1,7 +1,4 @@
-"""
-Evaluation and visualization for the Smart Student Productivity Advisor.
-Metrics, actual vs predicted, residuals, feature importance, permutation importance.
-"""
+"""Eval plots + metric helpers."""
 
 import numpy as np
 import pandas as pd
@@ -16,13 +13,20 @@ from .model_training import get_feature_importance_tree, get_coefficients_linear
 
 
 def model_comparison_bar_chart(results_df, save_path=None):
-    """Bar chart comparing R² (and optionally RMSE) across models."""
+    """Compare models quick."""
     ensure_output_dir()
     fig, ax = plt.subplots(figsize=(10, 5))
     x = np.arange(len(results_df))
     width = 0.35
     ax.bar(x - width / 2, results_df["R2"], width, label="R²", color="steelblue")
-    ax.bar(x + width / 2, results_df["RMSE"] / results_df["RMSE"].max(), width, label="RMSE (norm)", color="coral", alpha=0.8)
+    ax.bar(
+        x + width / 2,
+        results_df["RMSE"] / max(results_df["RMSE"].max(), 1e-9),
+        width,
+        label="RMSE (norm)",
+        color="coral",
+        alpha=0.8,
+    )
     ax.set_xticks(x)
     ax.set_xticklabels(results_df["Model"], rotation=45, ha="right")
     ax.set_ylabel("Score")
@@ -37,7 +41,7 @@ def model_comparison_bar_chart(results_df, save_path=None):
 
 
 def actual_vs_predicted_plot(y_true, y_pred, title="Actual vs Predicted (Best Model)", save_path=None):
-    """Scatter plot of actual vs predicted productivity score."""
+    """Actual vs pred scatter."""
     ensure_output_dir()
     fig, ax = plt.subplots(figsize=(6, 6))
     ax.scatter(y_true, y_pred, alpha=0.6, edgecolors="k", linewidths=0.5)
@@ -59,7 +63,7 @@ def actual_vs_predicted_plot(y_true, y_pred, title="Actual vs Predicted (Best Mo
 
 
 def residual_plot(y_true, y_pred, save_path=None):
-    """Residuals vs predicted values."""
+    """Residuals vs pred."""
     ensure_output_dir()
     residuals = y_true - y_pred
     fig, ax = plt.subplots(figsize=(6, 5))
@@ -76,8 +80,45 @@ def residual_plot(y_true, y_pred, save_path=None):
     return save_path
 
 
+def residual_distribution_plot(y_true, y_pred, save_path=None):
+    """Residual histogram."""
+    ensure_output_dir()
+    residuals = np.asarray(y_true) - np.asarray(y_pred)
+    fig, ax = plt.subplots(figsize=(7, 5))
+    ax.hist(residuals, bins=30, color="mediumpurple", edgecolor="black", alpha=0.75)
+    ax.axvline(0, color="red", linestyle="--", linewidth=1)
+    ax.set_xlabel("Residual")
+    ax.set_ylabel("Count")
+    ax.set_title("Residual Distribution")
+    plt.tight_layout()
+    if save_path is None:
+        save_path = f"{OUTPUT_DIR}/residual_distribution.png"
+    plt.savefig(save_path, dpi=150, bbox_inches="tight")
+    plt.close()
+    return save_path
+
+
+def qq_plot_residuals(y_true, y_pred, save_path=None):
+    """QQ plot for residuals."""
+    try:
+        from scipy import stats
+    except Exception:
+        return None
+    ensure_output_dir()
+    residuals = np.asarray(y_true) - np.asarray(y_pred)
+    fig, ax = plt.subplots(figsize=(6, 6))
+    stats.probplot(residuals, dist="norm", plot=ax)
+    ax.set_title("QQ Plot of Residuals")
+    plt.tight_layout()
+    if save_path is None:
+        save_path = f"{OUTPUT_DIR}/residual_qq_plot.png"
+    plt.savefig(save_path, dpi=150, bbox_inches="tight")
+    plt.close()
+    return save_path
+
+
 def feature_importance_chart(importance_series, title="Feature Importance", save_path=None, top_n=20):
-    """Horizontal bar chart for feature importance."""
+    """Feature importance barh."""
     if importance_series is None or importance_series.empty:
         return None
     ensure_output_dir()
@@ -98,7 +139,7 @@ def feature_importance_chart(importance_series, title="Feature Importance", save
 
 
 def permutation_importance_plot(model, X, y, feature_names, n_repeats=10, random_state=42, save_path=None):
-    """Compute and plot permutation importance."""
+    """Permutation importance plot."""
     ensure_output_dir()
     X_arr = X if hasattr(X, "values") else np.array(X)
     if hasattr(model, "predict"):

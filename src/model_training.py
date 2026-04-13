@@ -6,7 +6,7 @@ Trains and compares Linear Regression, Ridge, Lasso, Random Forest, Gradient Boo
 import warnings
 import numpy as np
 import pandas as pd
-from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.model_selection import train_test_split, cross_val_score, KFold
 from sklearn.linear_model import LinearRegression, Ridge, Lasso
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
 from sklearn.preprocessing import StandardScaler
@@ -15,7 +15,7 @@ from sklearn.pipeline import Pipeline
 
 from .utils import TARGET_COLUMN, OUTPUT_DIR, MODEL_ARTIFACT_PATH, PREPROCESSOR_ARTIFACT_PATH, ensure_output_dir
 
-# Optional XGBoost
+# xgboost is optional
 try:
     import xgboost as xgb
     HAS_XGB = True
@@ -24,7 +24,7 @@ except ImportError:
 
 
 def _get_models():
-    """Return dict of name -> model (with scaling for linear models)."""
+    """Return model dict. linear ones got scaler in pipeline."""
     models = {
         "Linear Regression": Pipeline([
             ("scaler", StandardScaler()),
@@ -54,18 +54,14 @@ def train_and_compare(
     random_state=42,
     scale_for_tree_models=False,
 ):
-    """
-    Train multiple regression models and compare by RMSE, MAE, R².
-    Returns: results DataFrame, best model name, best model object, fitted scaler (if any), X_train, X_test, y_train, y_test.
-    Tree models typically don't need scaling; linear models are wrapped in Pipeline with StandardScaler.
-    """
+    """Train few regressors and compare by rmse/mae/r2."""
     if feature_names is not None:
         X = X[feature_names].copy()
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=test_size, random_state=random_state
     )
 
-    # Scale features for linear models; tree models get raw X
+    # scale once, tree models still use raw
     scaler = StandardScaler()
     X_train_scaled = scaler.fit_transform(X_train)
     X_test_scaled = scaler.transform(X_test)
@@ -74,6 +70,7 @@ def train_and_compare(
 
     results = []
     fitted_models = {}
+    cv = KFold(n_splits=5, shuffle=True, random_state=random_state)
 
     for name, model in _get_models().items():
         use_scaled = isinstance(model, Pipeline)
@@ -94,13 +91,51 @@ def train_and_compare(
             rmse = np.sqrt(mean_squared_error(y_test, pred))
             mae = mean_absolute_error(y_test, pred)
             r2 = r2_score(y_test, pred)
-            results.append({"Model": name, "RMSE": rmse, "MAE": mae, "R2": r2})
+            # cv gives less noisy score
+            try:
+                # keep X raw here, pipeline handles scale itself
+                cv_rmse = -cross_val_score(
+                    model, X, y, cv=cv, scoring="neg_root_mean_squared_error", n_jobs=None
+                )
+                cv_r2 = cross_val_score(
+                    model, X, y, cv=cv, scoring="r2", n_jobs=None
+                )
+                cv_rmse_mean = float(np.mean(cv_rmse))
+                cv_rmse_std = float(np.std(cv_rmse))
+                cv_r2_mean = float(np.mean(cv_r2))
+                cv_r2_std = float(np.std(cv_r2))
+            except Exception:
+                cv_rmse_mean, cv_rmse_std, cv_r2_mean, cv_r2_std = (np.nan, np.nan, np.nan, np.nan)
+
+            results.append(
+                {
+                    "Model": name,
+                    "RMSE": rmse,
+                    "MAE": mae,
+                    "R2": r2,
+                    "CV_RMSE_mean": cv_rmse_mean,
+                    "CV_RMSE_std": cv_rmse_std,
+                    "CV_R2_mean": cv_r2_mean,
+                    "CV_R2_std": cv_r2_std,
+                }
+            )
         except Exception as e:
             warnings.warn(f"Model {name} failed: {e}")
-            results.append({"Model": name, "RMSE": np.nan, "MAE": np.nan, "R2": np.nan})
+            results.append(
+                {
+                    "Model": name,
+                    "RMSE": np.nan,
+                    "MAE": np.nan,
+                    "R2": np.nan,
+                    "CV_RMSE_mean": np.nan,
+                    "CV_RMSE_std": np.nan,
+                    "CV_R2_mean": np.nan,
+                    "CV_R2_std": np.nan,
+                }
+            )
 
     results_df = pd.DataFrame(results).sort_values("R2", ascending=False).reset_index(drop=True)
-    # Pick best model that actually fitted (in case some failed)
+    # pick best one that actually fit
     best_name = None
     for _, row in results_df.iterrows():
         if row["Model"] in fitted_models and not pd.isna(row["R2"]):
@@ -111,7 +146,7 @@ def train_and_compare(
     best_info = fitted_models[best_name]
     best_model = best_info["model"]
 
-    # Store scaler and feature order for use in recommendation engine and evaluation
+    # keep scaler + feature order for later
     preprocessor = {
         "scaler": scaler,
         "feature_names": X_train.columns.tolist(),

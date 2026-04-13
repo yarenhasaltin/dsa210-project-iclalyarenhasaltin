@@ -1,7 +1,4 @@
-"""
-Data loading and preprocessing for the Smart Student Productivity Advisor.
-Handles loading CSV, validation, missing values, duplicates, and basic cleaning.
-"""
+"""Data load + cleaning utils."""
 
 import os
 import warnings
@@ -20,10 +17,7 @@ from .utils import (
 
 
 def generate_synthetic_data(n_samples=500, seed=42):
-    """
-    Generate synthetic student productivity data for demonstration when CSV is missing.
-    Uses realistic ranges and correlations so the pipeline runs end-to-end.
-    """
+    """Make fake data if csv not found."""
     rng = np.random.default_rng(seed)
     n = n_samples
 
@@ -43,7 +37,7 @@ def generate_synthetic_data(n_samples=500, seed=42):
     stress_level = np.clip(rng.normal(5, 2, n), 1, 10)
     focus_score = np.clip(rng.normal(5, 2, n), 1, 10)
 
-    # Productivity: positive effect from study, sleep, exercise, focus, attendance; negative from distraction
+    # rough productivity formula, not perfect
     productivity = (
         30
         + 3 * study_hours
@@ -88,13 +82,7 @@ def generate_synthetic_data(n_samples=500, seed=42):
 
 
 def load_data(data_path=None, project_root=None, generate_if_missing=True):
-    """
-    Load the dataset from CSV. If the file is not found and generate_if_missing is True,
-    generates synthetic data and returns it along with a flag.
-
-    Returns:
-        tuple: (DataFrame, was_synthetic)
-    """
+    """Load csv; if missing can fallback to synthetic."""
     if data_path is None:
         data_path = get_data_path(project_root)
 
@@ -113,10 +101,7 @@ def load_data(data_path=None, project_root=None, generate_if_missing=True):
 
 
 def basic_checks(df):
-    """
-    Perform basic data checks and print summary.
-    Validates columns, shape, dtypes, missing values, duplicates, and basic statistics.
-    """
+    """Run basic checks and print summary."""
     validate_columns(df)
     print("Dataset shape:", df.shape)
     print("Column names:", list(df.columns))
@@ -136,9 +121,7 @@ def basic_checks(df):
 
 
 def handle_missing_values(df, strategy="drop"):
-    """
-    Handle missing values. strategy: 'drop' to drop rows with any missing, or 'fill' with median (numeric) / mode (object).
-    """
+    """Handle missing values with drop or fill."""
     if df.isnull().sum().sum() == 0:
         return df
     if strategy == "drop":
@@ -154,15 +137,12 @@ def handle_missing_values(df, strategy="drop"):
 
 
 def encode_gender(df, copy=True):
-    """
-    Encode gender column to numeric (0/1). Handles common string variants.
-    Returns DataFrame with 'gender_encoded' added and optionally 'gender' dropped later in pipeline.
-    """
+    """Encode gender to number."""
     if copy:
         df = df.copy()
     if "gender" not in df.columns:
         return df
-    # Normalize to title case for consistency
+    # keep strings a bit normalized
     g = df["gender"].astype(str).str.strip().str.title()
     le = LabelEncoder()
     df["gender_encoded"] = le.fit_transform(g)
@@ -170,10 +150,7 @@ def encode_gender(df, copy=True):
 
 
 def remove_outliers_iqr(df, columns=None, factor=1.5, copy=True):
-    """
-    Remove rows where any of the given numeric columns are outside IQR bounds.
-    columns: list of column names; if None, use all numeric columns except ID and target if present.
-    """
+    """Drop rows outside IQR bounds."""
     if copy:
         df = df.copy()
     numeric = df.select_dtypes(include=[np.number]).columns.tolist()

@@ -18,7 +18,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-# Add project root to path so we can run from any cwd
+# make imports work from project root
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 if SCRIPT_DIR not in sys.path:
     sys.path.insert(0, SCRIPT_DIR)
@@ -52,6 +52,8 @@ from src.evaluation import (
     model_comparison_bar_chart,
     actual_vs_predicted_plot,
     residual_plot,
+    residual_distribution_plot,
+    qq_plot_residuals,
     feature_importance_chart,
     permutation_importance_plot,
     recommendation_improvement_chart,
@@ -83,7 +85,7 @@ def run_eda(df):
     print("=" * 60)
     ensure_output_dir()
 
-    # 1. Univariate: distributions of major numeric variables
+    # quick univariate plots
     numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
     key_vars = [c for c in numeric_cols if c != "student_id" and c in df.columns][:12]
     if key_vars:
@@ -101,7 +103,7 @@ def run_eda(df):
         plt.close()
         print("Saved: outputs/distributions.png")
 
-    # Boxplots for outlier detection (selected vars)
+    # boxplots for some key vars
     box_vars = [TARGET_COLUMN, "study_hours_per_day", "sleep_hours", "phone_usage_hours", "stress_level", "focus_score"]
     box_vars = [c for c in box_vars if c in df.columns]
     if box_vars:
@@ -116,8 +118,17 @@ def run_eda(df):
 
     if "gender" in df.columns:
         print("\nGender value counts:\n", df["gender"].value_counts())
+        # simple split by gender
+        if TARGET_COLUMN in df.columns:
+            fig, ax = plt.subplots(figsize=(8, 5))
+            sns.boxplot(data=df, x="gender", y=TARGET_COLUMN, ax=ax)
+            ax.set_title("Productivity score by gender")
+            plt.tight_layout()
+            plt.savefig(os.path.join(OUTPUT_DIR, "productivity_by_gender.png"), dpi=150, bbox_inches="tight")
+            plt.close()
+            print("Saved: outputs/productivity_by_gender.png")
 
-    # 2. Bivariate: correlation heatmap
+    # correlation heatmap
     corr = df.select_dtypes(include=[np.number]).corr()
     fig, ax = plt.subplots(figsize=(12, 10))
     sns.heatmap(corr, annot=False, cmap="RdBu_r", center=0, square=True, ax=ax)
@@ -127,7 +138,7 @@ def run_eda(df):
     plt.close()
     print("Saved: outputs/correlation_heatmap.png")
 
-    # Scatter: productivity_score vs key variables
+    # scatter vs target
     scatter_vars = [
         "study_hours_per_day", "sleep_hours", "phone_usage_hours", "social_media_hours",
         "youtube_hours", "gaming_hours", "stress_level", "focus_score",
@@ -154,7 +165,7 @@ def run_eda(df):
     plt.close()
     print("Saved: outputs/scatter_productivity.png")
 
-    # 3. Digital distraction analysis: distraction vars vs productivity
+    # distraction vars vs target
     dist_cols = [c for c in DIGITAL_DISTRACTION_FEATURES if c in df.columns]
     if dist_cols:
         fig, axes = plt.subplots(2, 2, figsize=(10, 8))
@@ -170,13 +181,44 @@ def run_eda(df):
         plt.close()
         print("Saved: outputs/digital_distraction_vs_productivity.png")
 
-    # 4. Summary insights: correlations with productivity_score
+    # quick correlation summary
     if TARGET_COLUMN in df.columns:
         corr_with_target = df.select_dtypes(include=[np.number]).corr()[TARGET_COLUMN].drop(TARGET_COLUMN, errors="ignore")
         corr_with_target = corr_with_target.sort_values(ascending=False)
         print("\n--- EDA Summary: Correlation with productivity_score ---")
         print("Strongest positive:", corr_with_target.head(5).to_string())
         print("Strongest negative:", corr_with_target.tail(5).to_string())
+
+        # easier to read than full matrix
+        fig, ax = plt.subplots(figsize=(8, 6))
+        corr_with_target.sort_values().tail(15).plot(kind="barh", ax=ax, color="teal")
+        ax.set_title("Top positive correlations with productivity_score")
+        ax.set_xlabel("Correlation")
+        plt.tight_layout()
+        plt.savefig(os.path.join(OUTPUT_DIR, "top_correlations_with_productivity.png"), dpi=150, bbox_inches="tight")
+        plt.close()
+        print("Saved: outputs/top_correlations_with_productivity.png")
+
+        # formal tests if scipy exist
+        try:
+            from scipy.stats import pearsonr, spearmanr
+            print("\n--- Statistical tests (Pearson/Spearman) ---")
+            test_cols = [
+                "phone_usage_hours", "social_media_hours", "youtube_hours", "gaming_hours",
+                "study_hours_per_day", "sleep_hours", "exercise_minutes", "focus_score"
+            ]
+            for col in test_cols:
+                if col in df.columns:
+                    x = df[col].values
+                    y = df[TARGET_COLUMN].values
+                    pr, pp = pearsonr(x, y)
+                    sr, sp = spearmanr(x, y)
+                    print(
+                        f"{col:24s} | Pearson r={pr:+.3f}, p={pp:.4g} | "
+                        f"Spearman rho={sr:+.3f}, p={sp:.4g}"
+                    )
+        except Exception:
+            print("\n(Scipy not available; skipped formal correlation tests.)")
     return df
 
 
@@ -190,16 +232,16 @@ def run_preprocessing_and_engineering(df):
     df = encode_gender(df, copy=True)
     df = engineer_all_features(df, copy=True, include_leaky=True)
 
-    # Outlier handling with IQR
+    # iqr outlier trim
     exclude_cols = ["student_id", TARGET_COLUMN] if "student_id" in df.columns else [TARGET_COLUMN]
     numeric_for_iqr = [c for c in df.select_dtypes(include=[np.number]).columns if c not in exclude_cols]
     n_before = len(df)
     df = remove_outliers_iqr(df, columns=numeric_for_iqr, factor=1.5)
     print(f"Outlier removal (IQR): {n_before} -> {len(df)} rows")
 
-    # Feature set for modeling: exclude leakage (final_grade, grade_productivity_gap)
+    # keep leakage-ish cols out
     model_cols = [c for c in get_feature_columns_for_model(include_final_grade=False, include_grade_gap=False) if c in df.columns]
-    # Use only columns we actually have
+    # just cols that are present
     X = df[model_cols].copy()
     y = df[TARGET_COLUMN]
     print("Features for model (no leakage):", model_cols)
@@ -216,6 +258,7 @@ def run_modeling(X, y, feature_names):
     out = train_and_compare(X, y, feature_names=feature_names, test_size=0.2, random_state=42)
     results_df = out["results_df"]
     print("\nModel comparison (sorted by R²):\n", results_df.to_string(index=False))
+    results_df.to_csv(os.path.join(OUTPUT_DIR, "model_comparison_table.csv"), index=False)
     best_name = out["best_model_name"]
     best_model = out["best_model"]
     preprocessor = out["preprocessor"]
@@ -224,6 +267,9 @@ def run_modeling(X, y, feature_names):
     X_test_scaled = out["X_test_scaled"]
     used_scaled = preprocessor["best_uses_scaled"]
     y_pred = best_model.predict(X_test_scaled if used_scaled else X_test)
+    pd.DataFrame({"actual": y_test.values, "predicted": y_pred}).to_csv(
+        os.path.join(OUTPUT_DIR, "test_predictions.csv"), index=False
+    )
     print_metrics_summary(y_test, y_pred, best_name)
     save_best_model(best_model, preprocessor)
     return out, y_pred, y_test
@@ -237,12 +283,14 @@ def run_evaluation_plots(out, y_pred, y_test):
     model_comparison_bar_chart(out["results_df"])
     actual_vs_predicted_plot(y_test.values, y_pred, title="Actual vs Predicted (Best Model)")
     residual_plot(y_test.values, y_pred)
+    residual_distribution_plot(y_test.values, y_pred)
+    qq_plot_residuals(y_test.values, y_pred)
     best_model = out["best_model"]
     fn = out["preprocessor"]["feature_names"]
     imp = get_feature_importance_tree(best_model, fn)
     if imp is not None:
         feature_importance_chart(imp, title="Feature importance (best model)")
-    # Permutation importance (can be slow)
+    # can be bit slow
     X_te = out["X_test_scaled"] if out["preprocessor"]["best_uses_scaled"] else out["X_test"]
     try:
         permutation_importance_plot(best_model, X_te, y_test, fn, n_repeats=5)
@@ -328,7 +376,7 @@ def run_recommendations(df, out, feature_names):
     preprocessor = out["preprocessor"]
     preprocessor["best_uses_scaled"] = out["preprocessor"]["best_uses_scaled"]
 
-    # 1. Real student samples from dataset
+    # sample rows from data
     df_with_features = df.copy()
     for idx in [0, len(df) // 4, len(df) // 2]:
         if idx >= len(df_with_features):
@@ -345,7 +393,7 @@ def run_recommendations(df, out, feature_names):
         except Exception as e:
             print(f"Recommendation failed for row {idx}:", e)
 
-    # 2. Manually created example student
+    # one handmade example
     manual_profile = {
         "student_id": "manual_1",
         "age": 21,
@@ -366,7 +414,7 @@ def run_recommendations(df, out, feature_names):
         "final_grade": 55,
         "productivity_score": 50,
     }
-    # Ensure we have gender_encoded and engineered keys (recommend_improvements will update engineered)
+    # make sure encoded/engineered fields exist
     from src.data_preprocessing import encode_gender
     from src.feature_engineering import update_engineered_in_profile
     df_man = pd.DataFrame([manual_profile])

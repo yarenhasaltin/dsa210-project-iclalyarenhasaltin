@@ -85,6 +85,17 @@ def run_eda(df):
     print("=" * 60)
     ensure_output_dir()
 
+    # missing profile (helps for future real datasets)
+    missing_pct = (df.isnull().mean() * 100).sort_values(ascending=False)
+    fig, ax = plt.subplots(figsize=(10, 4))
+    missing_pct.plot(kind="bar", ax=ax, color="slategray")
+    ax.set_title("Missing values by column (%)")
+    ax.set_ylabel("Percent")
+    plt.tight_layout()
+    plt.savefig(os.path.join(OUTPUT_DIR, "missing_profile.png"), dpi=150, bbox_inches="tight")
+    plt.close()
+    print("Saved: outputs/missing_profile.png")
+
     # quick univariate plots
     numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
     key_vars = [c for c in numeric_cols if c != "student_id" and c in df.columns][:12]
@@ -127,6 +138,21 @@ def run_eda(df):
             plt.savefig(os.path.join(OUTPUT_DIR, "productivity_by_gender.png"), dpi=150, bbox_inches="tight")
             plt.close()
             print("Saved: outputs/productivity_by_gender.png")
+
+    # small pairplot sample for quick structure check
+    pair_cols = [
+        TARGET_COLUMN, "study_hours_per_day", "sleep_hours",
+        "phone_usage_hours", "social_media_hours", "focus_score"
+    ]
+    pair_cols = [c for c in pair_cols if c in df.columns]
+    if len(pair_cols) >= 3:
+        sample_n = min(250, len(df))
+        pair_df = df[pair_cols].sample(sample_n, random_state=42)
+        g = sns.pairplot(pair_df, corner=True, plot_kws={"alpha": 0.5, "s": 18})
+        g.fig.suptitle("Pairplot sample (key vars)", y=1.02)
+        g.fig.savefig(os.path.join(OUTPUT_DIR, "pairplot_key_vars.png"), dpi=150, bbox_inches="tight")
+        plt.close(g.fig)
+        print("Saved: outputs/pairplot_key_vars.png")
 
     # correlation heatmap
     corr = df.select_dtypes(include=[np.number]).corr()
@@ -219,6 +245,34 @@ def run_eda(df):
                     )
         except Exception:
             print("\n(Scipy not available; skipped formal correlation tests.)")
+
+    # rough outlier count report by IQR
+    print("\n--- Outlier preview by IQR ---")
+    for col in [c for c in df.select_dtypes(include=[np.number]).columns if c != TARGET_COLUMN]:
+        q1 = df[col].quantile(0.25)
+        q3 = df[col].quantile(0.75)
+        iqr = q3 - q1
+        if iqr == 0:
+            continue
+        low = q1 - 1.5 * iqr
+        high = q3 + 1.5 * iqr
+        n_out = int(((df[col] < low) | (df[col] > high)).sum())
+        if n_out > 0:
+            print(f"{col:24s}: {n_out}")
+
+    # distraction bucket analysis (practical for interventions)
+    needed = set(DIGITAL_DISTRACTION_FEATURES + [TARGET_COLUMN])
+    if needed.issubset(df.columns):
+        temp = df.copy()
+        temp["digital_distraction_score"] = temp[DIGITAL_DISTRACTION_FEATURES].sum(axis=1)
+        temp["distraction_bucket"] = pd.qcut(temp["digital_distraction_score"], q=4, labels=["Low", "Med-Low", "Med-High", "High"])
+        fig, ax = plt.subplots(figsize=(8, 5))
+        sns.boxplot(data=temp, x="distraction_bucket", y=TARGET_COLUMN, ax=ax)
+        ax.set_title("Productivity by digital distraction quartile")
+        plt.tight_layout()
+        plt.savefig(os.path.join(OUTPUT_DIR, "productivity_by_distraction_bucket.png"), dpi=150, bbox_inches="tight")
+        plt.close()
+        print("Saved: outputs/productivity_by_distraction_bucket.png")
     return df
 
 

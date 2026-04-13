@@ -45,11 +45,11 @@ Place your CSV file as `student_productivity.csv` in the project root, or the co
 ## Methods Used
 
 - **Data:** Loading, validation, missing/duplicate handling, basic statistics  
-- **EDA:** Univariate/bivariate analysis, correlation heatmap, digital distraction vs productivity  
+- **EDA:** Univariate/bivariate analysis, pairplot sample, missing-value profile, correlation heatmap, digital distraction vs productivity, hypothesis-style correlation tests  
 - **Preprocessing:** Outlier handling (IQR), scaling, gender encoding  
 - **Feature engineering:** digital_distraction_score, healthy_lifestyle_score, academic_engagement_score, study_to_phone_ratio, stress_focus_balance, break_efficiency_score, caffeine_stress_interaction, grade_productivity_gap  
 - **Modeling:** Linear Regression, Ridge, Lasso, Random Forest, Gradient Boosting, XGBoost  
-- **Evaluation:** RMSE, MAE, R²; model comparison; actual vs predicted; residuals; feature importance  
+- **Evaluation:** RMSE, MAE, R² + cross-validation stats; model comparison; actual vs predicted; residual diagnostics; feature and permutation importance  
 - **Digital distraction analysis:** Correlation, reduced-model experiment, interpretation  
 - **Recommendation engine:** Scenario-based suggestions (reduce distraction, increase sleep/exercise/study) with realistic bounds  
 
@@ -78,8 +78,9 @@ Place your CSV file as `student_productivity.csv` in the project root, or the co
    ```
 
 4. **Outputs**
-   - Console: data summary, EDA insights, model comparison, recommendation examples  
-   - Plots saved in `outputs/` (if created): distributions, correlation heatmap, model comparison, actual vs predicted, residuals, feature importance, recommendation improvement  
+   - Console: data summary, EDA insights, model comparison, recommendation examples
+   - CSV in `outputs/`: `model_comparison_table.csv`, `test_predictions.csv`
+   - Plots in `outputs/` (examples): distributions, boxplots, missing profile, pairplot sample, correlation heatmap, scatter plots, actual-vs-predicted, residual diagnostics, feature/permutation importance, recommendation improvement
 
 ---
 
@@ -87,15 +88,23 @@ Place your CSV file as `student_productivity.csv` in the project root, or the co
 
 ```
 dsa210-project-iclalyarenhasaltin/
-├── main.py                 # Entry point; runs full pipeline
-├── student_productivity.csv # Your dataset (or synthetic if missing)
+├── main.py
+├── student_productivity.csv            # your data (optional; synthetic fallback exists)
+├── PROPOSAL.md
 ├── requirements.txt
 ├── README.md
+├── notebooks/
+│   ├── 01_eda_and_hypothesis_tests.ipynb
+│   └── 02_model_experiments_and_evaluation.ipynb
 ├── src/
-│   ├── utils.py            # Constants, paths, helpers
+│   ├── __init__.py
+│   ├── utils.py
 │   ├── data_preprocessing.py
-│   ├── feature_engineering.py│   └── evaluation.py
-└── outputs/                # Generated plots (created on first run)
+│   ├── feature_engineering.py
+│   ├── model_training.py
+│   ├── recommendation_engine.py
+│   └── evaluation.py
+└── outputs/                            # generated plots/tables/model artifacts
 ```
 
 ---

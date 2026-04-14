@@ -4,8 +4,7 @@ venv/
 env/
 
 # Outputs and artifacts
-outputs/
-*.joblib
+# (kept in repo on purpose)
 
 # Python
 __pycache__/

@@ -66,6 +66,7 @@ from src.recommendation_engine import recommend_improvements, format_recommendat
 # PART 2 — DATA LOADING AND BASIC CHECKS
 # =============================================================================
 def run_data_loading():
+    # quick load + sanity checks
     print("\n" + "=" * 60)
     print("PART 2 — DATA LOADING AND BASIC CHECKS")
     print("=" * 60)

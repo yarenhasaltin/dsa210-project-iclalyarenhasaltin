@@ -10,6 +10,7 @@ modeling, digital distraction analysis, recommendation engine.
 import os
 import sys
 import warnings
+import argparse
 
 import numpy as np
 import pandas as pd
@@ -55,6 +56,7 @@ from src.evaluation import (
     residual_distribution_plot,
     qq_plot_residuals,
     feature_importance_chart,
+    coefficient_chart,
     permutation_importance_plot,
     recommendation_improvement_chart,
     print_metrics_summary,
@@ -306,11 +308,20 @@ def run_preprocessing_and_engineering(df):
 # =============================================================================
 # PART 5 — MODELING
 # =============================================================================
-def run_modeling(X, y, feature_names):
+def run_modeling(X, y, feature_names, include_xgboost=False, cv_splits=3, cv_max_rows=5000):
     print("\n" + "=" * 60)
     print("PART 5 — MODELING: PRODUCTIVITY PREDICTION")
     print("=" * 60)
-    out = train_and_compare(X, y, feature_names=feature_names, test_size=0.2, random_state=42)
+    out = train_and_compare(
+        X,
+        y,
+        feature_names=feature_names,
+        test_size=0.2,
+        random_state=42,
+        include_xgboost=include_xgboost,
+        cv_splits=cv_splits,
+        cv_max_rows=cv_max_rows,
+    )
     results_df = out["results_df"]
     print("\nModel comparison (sorted by R²):\n", results_df.to_string(index=False))
     results_df.to_csv(os.path.join(OUTPUT_DIR, "model_comparison_table.csv"), index=False)
@@ -319,13 +330,19 @@ def run_modeling(X, y, feature_names):
     preprocessor = out["preprocessor"]
     X_test = out["X_test"]
     y_test = out["y_test"]
-    X_test_scaled = out["X_test_scaled"]
-    used_scaled = preprocessor["best_uses_scaled"]
-    y_pred = best_model.predict(X_test_scaled if used_scaled else X_test)
+    y_pred = out.get("best_predictions")
+    if y_pred is None:
+        y_pred = best_model.predict(X_test)
     pd.DataFrame({"actual": y_test.values, "predicted": y_pred}).to_csv(
         os.path.join(OUTPUT_DIR, "test_predictions.csv"), index=False
     )
     print_metrics_summary(y_test, y_pred, best_name)
+    if float(results_df.iloc[0]["R2"]) >= 0.995:
+        print(
+            "\n[Diagnostic] The top model achieved an extremely high R². "
+            "This may indicate a near-deterministic relationship in the dataset "
+            "or features that are unusually close proxies for the target."
+        )
     save_best_model(best_model, preprocessor)
     return out, y_pred, y_test
 
@@ -345,8 +362,12 @@ def run_evaluation_plots(out, y_pred, y_test):
     imp = get_feature_importance_tree(best_model, fn)
     if imp is not None:
         feature_importance_chart(imp, title="Feature importance (best model)")
+    else:
+        coef = get_coefficients_linear(best_model, fn)
+        if coef is not None:
+            coefficient_chart(coef, title="Largest coefficients (best model)")
     # can be bit slow
-    X_te = out["X_test_scaled"] if out["preprocessor"]["best_uses_scaled"] else out["X_test"]
+    X_te = out["X_test"]
     try:
         permutation_importance_plot(best_model, X_te, y_test, fn, n_repeats=5)
     except Exception as e:
@@ -357,7 +378,7 @@ def run_evaluation_plots(out, y_pred, y_test):
 # =============================================================================
 # PART 6 — DIGITAL DISTRACTION IMPACT ANALYSIS
 # =============================================================================
-def run_digital_distraction_analysis(df, out):
+def run_digital_distraction_analysis(df, out, include_shap=False):
     print("\n" + "=" * 60)
     print("PART 6 — DIGITAL DISTRACTION IMPACT ANALYSIS")
     print("=" * 60)
@@ -407,17 +428,20 @@ def run_digital_distraction_analysis(df, out):
     print("Positive habits that offset distraction: study_hours, sleep_hours, exercise_minutes, focus_score, attendance.")
 
     # 5. Optional SHAP (if available)
-    try:
-        import shap
-        X_te = out["X_test_scaled"] if out["preprocessor"]["best_uses_scaled"] else out["X_test"]
-        explainer = shap.Explainer(out["best_model"], X_te[: min(100, len(X_te))])
-        shap_vals = explainer.shap_values(X_te[: min(100, len(X_te))])
-        if hasattr(shap_vals, "shape") and len(shap_vals.shape) >= 2:
-            mean_abs_shap = np.abs(shap_vals).mean(axis=0)
-            shap_imp = pd.Series(mean_abs_shap, index=out["preprocessor"]["feature_names"]).sort_values(ascending=False)
-            print("\nSHAP mean |impact| (top 10):\n", shap_imp.head(10).to_string())
-    except Exception as e:
-        print("\n(SHAP skipped:", str(e)[:60] + ")")
+    if include_shap:
+        try:
+            import shap
+            X_te = out["X_test_scaled"] if out["preprocessor"]["best_uses_scaled"] else out["X_test"]
+            explainer = shap.Explainer(out["best_model"], X_te[: min(100, len(X_te))])
+            shap_vals = explainer.shap_values(X_te[: min(100, len(X_te))])
+            if hasattr(shap_vals, "shape") and len(shap_vals.shape) >= 2:
+                mean_abs_shap = np.abs(shap_vals).mean(axis=0)
+                shap_imp = pd.Series(mean_abs_shap, index=out["preprocessor"]["feature_names"]).sort_values(ascending=False)
+                print("\nSHAP mean |impact| (top 10):\n", shap_imp.head(10).to_string())
+        except Exception as e:
+            print("\n(SHAP skipped:", str(e)[:60] + ")")
+    else:
+        print("\n(SHAP skipped by default. Re-run with --with-shap to enable it.)")
 
 
 # =============================================================================
@@ -505,8 +529,8 @@ Feature engineering: digital_distraction_score, healthy_lifestyle_score, academi
 study_to_phone_ratio, stress_focus_balance, break_efficiency_score, caffeine_stress_interaction,
 grade_productivity_gap (excluded from model to avoid leakage).
 
-Modeling: Linear Regression, Ridge, Lasso, Random Forest, Gradient Boosting, XGBoost compared;
-best model selected by R²/RMSE/MAE; standardized features for linear models.
+Modeling: Linear Regression, Ridge, Lasso, Random Forest, and Gradient Boosting compared by default;
+optional heavier methods such as XGBoost can be enabled from the command line; best model selected by R²/RMSE/MAE.
 
 Digital distraction analysis: Correlation and feature importance show which distractions hurt most;
 reduced model (distraction-only) vs full model comparison.
@@ -524,14 +548,51 @@ Future improvements: More data, temporal features, classification for productivi
 # =============================================================================
 # MAIN
 # =============================================================================
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Run the Smart Student Productivity Advisor pipeline."
+    )
+    parser.add_argument(
+        "--with-xgboost",
+        action="store_true",
+        help="Include XGBoost in model comparison.",
+    )
+    parser.add_argument(
+        "--with-shap",
+        action="store_true",
+        help="Run optional SHAP-based interpretation.",
+    )
+    parser.add_argument(
+        "--cv-splits",
+        type=int,
+        default=3,
+        help="Number of cross-validation folds for model comparison.",
+    )
+    parser.add_argument(
+        "--cv-max-rows",
+        type=int,
+        default=5000,
+        help="Maximum rows used for cross-validation scoring to keep runtime manageable.",
+    )
+    return parser.parse_args()
+
+
 def main():
+    args = parse_args()
     ensure_output_dir()
     df = run_data_loading()
     df = run_eda(df)
     df, X, y, feature_names = run_preprocessing_and_engineering(df)
-    out, y_pred, y_test = run_modeling(X, y, feature_names)
+    out, y_pred, y_test = run_modeling(
+        X,
+        y,
+        feature_names,
+        include_xgboost=args.with_xgboost,
+        cv_splits=args.cv_splits,
+        cv_max_rows=args.cv_max_rows,
+    )
     run_evaluation_plots(out, y_pred, y_test)
-    run_digital_distraction_analysis(df, out)
+    run_digital_distraction_analysis(df, out, include_shap=args.with_shap)
     run_recommendations(df, out, feature_names)
     print_report_summary()
     print("\nDone.")

@@ -138,6 +138,28 @@ def feature_importance_chart(importance_series, title="Feature Importance", save
     return save_path
 
 
+def coefficient_chart(coef_series, title="Model Coefficients", save_path=None, top_n=20):
+    """Visualize the largest-magnitude linear coefficients."""
+    if coef_series is None or coef_series.empty:
+        return None
+    ensure_output_dir()
+    s = coef_series.reindex(coef_series.abs().sort_values(ascending=False).index).head(top_n)
+    colors = ["seagreen" if v >= 0 else "indianred" for v in s.values]
+    fig, ax = plt.subplots(figsize=(8, max(6, len(s) * 0.3)))
+    ax.barh(range(len(s)), s.values, color=colors, alpha=0.85)
+    ax.set_yticks(range(len(s)))
+    ax.set_yticklabels(s.index, fontsize=9)
+    ax.invert_yaxis()
+    ax.set_xlabel("Coefficient")
+    ax.set_title(title)
+    plt.tight_layout()
+    if save_path is None:
+        save_path = f"{OUTPUT_DIR}/linear_coefficients.png"
+    plt.savefig(save_path, dpi=150, bbox_inches="tight")
+    plt.close()
+    return save_path
+
+
 def permutation_importance_plot(model, X, y, feature_names, n_repeats=10, random_state=42, save_path=None):
     """Permutation importance plot."""
     ensure_output_dir()
@@ -191,5 +213,6 @@ def print_metrics_summary(y_true, y_pred, model_name="Best model"):
     rmse = np.sqrt(mean_squared_error(y_true, y_pred))
     mae = mean_absolute_error(y_true, y_pred)
     r2 = r2_score(y_true, y_pred)
-    print(f"\n{model_name} — RMSE: {rmse:.4f}, MAE: {mae:.4f}, R²: {r2:.4f}")
-    return {"RMSE": rmse, "MAE": mae, "R2": r2}
+    mape = float(np.mean(np.abs((np.asarray(y_true) - np.asarray(y_pred)) / np.maximum(np.abs(y_true), 1e-6))) * 100.0)
+    print(f"\n{model_name} — RMSE: {rmse:.4f}, MAE: {mae:.4f}, R²: {r2:.4f}, MAPE: {mape:.2f}%")
+    return {"RMSE": rmse, "MAE": mae, "R2": r2, "MAPE": mape}

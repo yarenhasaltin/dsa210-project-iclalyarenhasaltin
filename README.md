@@ -48,10 +48,24 @@ Place your CSV file as `student_productivity.csv` in the project root, or the co
 - **EDA:** Univariate/bivariate analysis, pairplot sample, missing-value profile, correlation heatmap, digital distraction vs productivity, hypothesis-style correlation tests  
 - **Preprocessing:** Outlier handling (IQR), scaling, gender encoding  
 - **Feature engineering:** digital_distraction_score, healthy_lifestyle_score, academic_engagement_score, study_to_phone_ratio, stress_focus_balance, break_efficiency_score, caffeine_stress_interaction, grade_productivity_gap  
-- **Modeling:** Linear Regression, Ridge, Lasso, Random Forest, Gradient Boosting, XGBoost  
+- **Modeling:** Linear Regression, Ridge, Lasso, Random Forest, Gradient Boosting; optional XGBoost  
 - **Evaluation:** RMSE, MAE, R² + cross-validation stats; model comparison; actual vs predicted; residual diagnostics; feature and permutation importance  
 - **Digital distraction analysis:** Correlation, reduced-model experiment, interpretation  
-- **Recommendation engine:** Scenario-based suggestions (reduce distraction, increase sleep/exercise/study) with realistic bounds  
+- **Recommendation engine:** Scenario-based suggestions (reduce distraction, increase sleep/exercise/study) with realistic bounds
+
+---
+
+## Milestone 2 Checklist
+
+This repository now covers the Milestone 2 requirement to **apply machine learning methods on the dataset**:
+
+- Regression pipeline for predicting `productivity_score`
+- Multiple model comparison with train/test evaluation
+- Cross-validation summary in `outputs/model_comparison_table.csv`
+- Saved artifacts for the best model in `outputs/best_model.joblib` and `outputs/preprocessor.joblib`
+- Prediction output in `outputs/test_predictions.csv`
+- Evaluation visuals such as actual-vs-predicted, residual plots, and feature/permutation importance
+- A scenario-based recommendation engine built on top of the trained model
 
 ---
 
@@ -62,6 +76,11 @@ Place your CSV file as `student_productivity.csv` in the project root, or the co
    python3 -m venv .venv
    source .venv/bin/activate   # On Windows: .venv\Scripts\activate
    pip install -r requirements.txt
+   ```
+
+   Optional extras for heavier interpretation/experiments:
+   ```bash
+   pip install xgboost shap
    ```
 
 2. **Prepare data**  
@@ -76,6 +95,13 @@ Place your CSV file as `student_productivity.csv` in the project root, or the co
    cd dsa210-project-iclalyarenhasaltin
    python main.py
    ```
+
+   Optional flags:
+   ```bash
+   python main.py --with-xgboost --with-shap
+   ```
+
+   The default run is intentionally lighter and more reproducible for milestone submission. XGBoost and SHAP are available as opt-in extras.
 
 4. **Outputs**
    - Console: data summary, EDA insights, model comparison, recommendation examples
@@ -114,7 +140,7 @@ dsa210-project-iclalyarenhasaltin/
 - **Problem definition:** Predict productivity and recommend lifestyle changes to improve it, with focus on digital distraction.  
 - **Data preprocessing:** Schema validation, missing/duplicate handling, encoding, outlier treatment, scaling.  
 - **Feature engineering:** Composite scores (digital distraction, healthy lifestyle, academic engagement), ratios and balances, interaction terms.  
-- **Modeling:** Multiple regressors compared; best model selected by R²/RMSE/MAE.  
+- **Modeling:** Multiple regressors compared; best model selected by R²/RMSE/MAE. Optional heavier methods can be enabled from the CLI.  
 - **Digital distraction analysis:** Correlation and reduced-model experiments show which distractions matter most.  
 - **Recommendation engine:** Scenario simulation with realistic bounds; outputs ranked suggestions and expected gains.  
 - **Evaluation:** Metrics table, residual and actual vs predicted plots, feature importance.  

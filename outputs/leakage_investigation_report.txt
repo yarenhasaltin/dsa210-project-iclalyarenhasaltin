@@ -1,0 +1,110 @@
+================================================================================
+LEAKAGE INVESTIGATION AND FEATURE SELECTION REPORT
+================================================================================
+
+POTENTIAL LEAKAGE INDICATORS:
+--------------------------------------------------------------------------------
+
+✓ No features with |correlation| > 0.95 detected.
+
+MULTICOLLINEARITY ANALYSIS:
+--------------------------------------------------------------------------------
+
+⚠️  Found 15 features with VIF > 10 (high multicollinearity):
+   - assignments_completed: VIF = inf
+   - digital_distraction_score: VIF = inf
+   - study_hours_per_day: VIF = inf
+   - sleep_hours: VIF = inf
+   - phone_usage_hours: VIF = inf
+   - social_media_hours: VIF = inf
+   - youtube_hours: VIF = inf
+   - stress_focus_balance: VIF = inf
+   - academic_engagement_score: VIF = inf
+   - exercise_minutes: VIF = inf
+   - healthy_lifestyle_score: VIF = inf
+   - attendance_percentage: VIF = inf
+   - stress_level: VIF = inf
+   - focus_score: VIF = inf
+   - gaming_hours: VIF = 4264271.32
+
+   High VIF indicates features are linear combinations of others,
+   suggesting engineered/derived features.
+
+FEATURE SIGNIFICANCE:
+--------------------------------------------------------------------------------
+
+13/22 features are statistically significant (p < 0.05)
+
+Insignificant features (candidates for removal):
+   - coffee_intake_mg: p-value = 0.1030
+   - youtube_hours: p-value = 0.4014
+   - age: p-value = 0.4213
+   - breaks_per_day: p-value = 0.6587
+   - social_media_hours: p-value = 0.6786
+   - assignments_completed: p-value = 0.7339
+   - gender_encoded: p-value = 0.8256
+   - gaming_hours: p-value = 0.9393
+   - exercise_minutes: p-value = 0.9802
+
+RECOMMENDED FEATURE SUBSET (by consensus ranking):
+--------------------------------------------------------------------------------
+
+Top 10 most important features (by consensus):
+   1. age
+   2. gaming_hours
+   3. gender_encoded
+   4. breaks_per_day
+   5. exercise_minutes
+   6. assignments_completed
+   7. coffee_intake_mg
+   8. caffeine_stress_interaction
+   9. social_media_hours
+   10. youtube_hours
+
+
+Recommended minimal feature set (top 10):
+These features provide best balance of interpretability and predictiveness.
+
+LASSO-SELECTED FEATURES (regularization-based):
+--------------------------------------------------------------------------------
+
+Lasso identified 7 essential features:
+   - study_hours_per_day
+   - stress_focus_balance
+   - sleep_hours
+   - phone_usage_hours
+   - attendance_percentage
+   - stress_level
+   - study_to_phone_ratio
+
+DATASET CHARACTERISTICS:
+--------------------------------------------------------------------------------
+
+Total features: 22
+Total samples: 18272
+Target variable: productivity_score
+Target mean: 48.66, std: 15.35
+Target range: [0.00, 99.53]
+
+RECOMMENDATIONS FOR IMPROVED MODEL:
+--------------------------------------------------------------------------------
+
+1. FEATURE REDUCTION:
+   - Use top 10-15 consensus-ranked features for more interpretable models
+   - This reduces overfitting and improves real-world applicability
+   
+2. REMOVE REDUNDANT FEATURES:
+   - Digital distraction score is sum of its components (removes 4 components)
+   - Healthy lifestyle score is derived from sleep + exercise (consider using raw values)
+   
+3. FOCUS ON ACTIONABLE FEATURES:
+   - Prioritize features that students can change (e.g., sleep, phone usage)
+   - De-prioritize fixed features (age, gender, final_grade)
+   
+4. INTERPRET R² CAREFULLY:
+   - Very high R² may indicate synthetic data or near-deterministic relationships
+   - Use domain knowledge to validate if predictions make real-world sense
+   
+5. CROSS-VALIDATION:
+   - Ensure cross-validation uses stratification by key variables
+   - Test on truly unseen data to validate generalization

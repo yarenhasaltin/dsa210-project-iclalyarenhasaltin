@@ -1,0 +1,11 @@
+Metric,Value
+Total Samples,18272
+Total Features,22
+Target Mean,48.6631
+Target Std,15.3455
+Target Min,0.00
+Target Max,99.53
+Baseline Model R²,1.000000
+Top 10 Features R²,0.998978
+R² Reduction (%),0.10%
+Features Removed,12
